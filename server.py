@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 UNPILAR - Facultad de Producción y Tecnología - Tecnicatura Universitaria en Desarrollo de Software
 - Proyecto: Servidor UDP con verificación CRC y simulación de errores.
@@ -65,8 +66,43 @@ def crc16_ccitt(data):
     return crc
 
 
+def simular_error(mensaje: str, probabilidad: float):
+    """
+    Simula errores de transmisión corrompiendo el mensaje
+        - Prueba que el CRC detecte errores de forma correcta
+    
+    - Parámetros:
+        - mensaje (str) -> el mensaje que puede ser corrompido
+        - probabilidad (float) -> numero entre 0 y 1
 
-# Código de pruebas de funcionamiento:
-mensaje = "Hola hola"
-codigo = crc16_ccitt(mensaje)
-print(f"CRC de '{mensaje}': {codigo}")
+    - Return -> str, que representa el mensaje original o corrompido (con una letra cambiada), según la probabilidad de corrupción
+    """
+
+    # Genera un número random que determinará si habrá error o no
+    numero_random = random.random()
+
+    # Compara el número random con la probabilidad -> ej con probabilidad = 0.2 >>> si numero_random = 0.15 -> 0.15 < 0.2 == habrá error
+    if numero_random < probabilidad:
+        # Conversión del mensaje (str) en una lista de strings para poder modificarlo (corromperlo)
+        lista_caracteres = list(mensaje)
+
+        # Si el mensaje no está vacío
+        if len(lista_caracteres) > 0:
+            # Se genera un numero random entre 0 y la longitud de la lista - 1 -> decide una posición válida para insertar el cambio
+            posicion = random.randint(0, len(lista_caracteres) - 1)
+            
+            # Se genera la corrupción del mensaje
+            lista_caracteres[posicion] = "x"
+
+            # Se le indica al usuario dónde ocurrió el error
+            print(f"[Servidor] ¡Error simulado en la posición {posicion}!")
+
+        # Se convierte nuevamente el mensaje a string para retornarlo en modo "texto" -> join() une todos los elementos de la lista en un solo string
+        mensaje = "".join(lista_caracteres)
+
+    # Se retorna el mensaje -> si hubo error, retorna el mensaje con una letra cambiada; si NO hubo error, retorna el mensaje original (sin cambios)
+    return mensaje
+
+# Prueba de funcionamiento
+mensaje = "hola"
+simular_error(mensaje, PROBABILIDAD_DE_ERROR)
