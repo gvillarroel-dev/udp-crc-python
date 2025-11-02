@@ -172,9 +172,77 @@ def enviar_mensaje(sock, direccion_servidor, secuencia, mensaje):
     return False  # Se indica el fracaso de la transmisión
     
 
-# Prueba de funcionamiento -> realizado con el server.py corriendo
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.settimeout(MAX_TIEMPO_DE_ESPERA)
-direccion_servidor = (HOST_SERVIDOR, PORT_SERVIDOR)
+# ===================== FUNCIÓN PRINCIPAL DEL CLIENTE =====================
+# Controla el flujo general del programa cliente -> maneja interacción con usuario y ciclo de vida del socket
 
-res = enviar_mensaje(sock, direccion_servidor, 0, "Hola")
+def main():
+    """
+    Función principal que ejecuta el cliente UDP:
+    1. Crea y configura el socket
+    2. Entra en bucle interactivo -> petición de mensajes al usuario
+    3. Envia cada mensaje con enviar_mensaje()
+    4. Alterna el número de secuencia si el envio fue OK
+    5. Repite hasta que el usuario presiona 'Enter' sin escribir nada
+    6. Cierra el socket y termina
+
+    """
+
+    # Muestra información de configuración
+    print("[Cliente] Iniciando cliente")
+    print(f"[Cliente] Servidor: {HOST_SERVIDOR}:{PORT_SERVIDOR}")
+    print(f"[Cliente] Timeout: {MAX_TIEMPO_DE_ESPERA}s")
+    print(f"[Cliente] Máximo número de intentos: {MAX_INTENTOS}")
+    print()
+
+    # Se crea el socket UDP -> socket.socket() crea un nuevo punto de comunicación
+    # - socket.AF_INET -> indica el uso de IPv4
+    # - socket.SOCK_DGRAM -> indica el uso de UDP (datagramas, sin conexión)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    # Se configura el tiempo máx de espera del socket -> settimeout() define cuánto tiempo esperar por una respuesta
+    sock.settimeout(MAX_TIEMPO_DE_ESPERA)
+
+    # Se define la dirección del servidor -> TODOS los paquetes irán a esta dirección
+    direccion_servidor = (HOST_SERVIDOR, PORT_SERVIDOR)
+
+    # Se inicializa el numero de secuencia (0-1) -> evitar procesamiento de mensajes duplicados y detectar reenvíos o mensajes nuevos
+    secuencia = 0
+
+    # Se muestran instrucciones al usuario
+    print("=" * 50)
+    print("Escribe un mensaje y presiona 'Enter' para enviarlo")
+    print("Presiona 'Enter' para salir")
+    print("=" * 50)
+
+    # Bucle principal que se ejecuta indefinidamente hasta que el usuario decida salir -> interacción con el usuario
+    while True:
+
+        # Se pide mensaje al usuario
+        mensaje = input("\nMensaje a enviar: ")
+
+        # Se verifica si el usuario quiere terminar/salir del programa (interacción)
+        if mensaje == "":
+            print("[Cliente] Cerrando cliente...")
+            break  # Sale del bucle
+
+        # Se envía el mensaje -> retorna True si tuvo éxito, False si falló
+        exito = enviar_mensaje(sock, direccion_servidor, secuencia, mensaje)
+
+        # Se alterna el número de secuencia si el envío fue exitoso -> solo cambia si el mensaje fue entregado
+        if exito:
+            if secuencia == 0:
+                secuencia = 1
+            else:
+                secuencia = 0
+            print(f"[Cliente] Próxima secuencia: {secuencia}")
+        
+        # El bucle continua y vuelve a pedir otro mensaje
+    
+    # Se cierra el socket (conexión)
+    sock.close()
+    print("[Cliente] Cliente cerrado")
+
+
+# Punto de entrada del programa -> permite usar el script directamente o importarlo como módulo
+if __name__ == "__main__":
+    main()
