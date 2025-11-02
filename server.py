@@ -103,6 +103,115 @@ def simular_error(mensaje: str, probabilidad: float):
     # Se retorna el mensaje -> si hubo error, retorna el mensaje con una letra cambiada; si NO hubo error, retorna el mensaje original (sin cambios)
     return mensaje
 
-# Prueba de funcionamiento
-mensaje = "hola"
-simular_error(mensaje, PROBABILIDAD_DE_ERROR)
+
+
+# ===================== FUNCIÓN PRINCIPAL DEL SERVIDOR =====================
+# Esta función controla todo el servidor:
+# 1. Crea el socket (punto de comunicacion)
+# 2. Espera mensajes de clientes
+# 3. Verifica si hay errores usando CRC
+# 4. Responde con ACK (OK) o NACK (error)
+
+def main():
+    """
+    Función principal que ejecuta el servidor UDP:
+        - Espera mensajes en un puerto específico
+        - Simula errores de transmisión
+        - Calcula el CRC del mensaje recibido
+        - Compara con el CRC que envió el cliente
+        - Responde ACK si está OK, NACK si hay error
+        - Lleva control de secuencia para evitar mensajes duplicados
+    """
+
+    print(f"[Servidor] Iniciando servidor en {HOST}:{PORT}")
+    print(f"[Servidor] Probabilidad de error: {PROBABILIDAD_DE_ERROR * 100}%")
+    print()
+
+    # Creación y configuración del socket UDP:
+    # socket.AF_INET --> AF determina la familia de direcciones & INET usa direcciones IPv4 para la comunicación (Internet)
+    # socket.SOCK_DGRAM --> DGRAM es el tipo unidad de dato usada en UDP (datagrama)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    # Se "amarra" el socket a una dirección y puertos especificos -> de esta forma, el servidor SOLO RECIBE mensajes EN ESTE PUERTO
+    sock.bind((HOST, PORT)) 
+
+    # Se inicia el control de secuencia -> evita procesar mensajes duplicados (alternando entre 0 y 1 para cada mensaje nuevo)
+    secuencia_esperada = 0
+
+    print("[Servidor] Esperando mensajes...\n")
+
+    # Se genera la espera y procesamiento de mensajes
+    while True:
+        # Se reciben datos del cliente -> datos: bytes recibidos; direccion_cliente: tupla con (IP, puerto) del que se envió el mensaje
+        datos, direccion_cliente = sock.recvfrom(1024)  # 1024 es el tamaño máximo del buffer (bytes a recibir)
+        
+        # Se decodifican los bytes a texto
+        mensaje_completo = datos.decode("utf-8")
+
+        print(f"[Servidor] Mensaje recibido de: {direccion_cliente}")
+        print(f"\tContenido: {mensaje_completo}")
+
+        # Se separa el mensaje en partes: secuencia|mensaje|crc
+        partes = mensaje_completo.split("|")
+
+        # Se valida que el formato sea el correcto -> el mensaje DEBE tener 3 partes, de lo contrario el formato será incorrecto
+        if len(partes) != 3:
+            print("[Servidor] Error: formato incorrecto")
+            continue  # Ignora el mensaje actual y salta al siguiente
+
+        # Se extraen las partes del mensaje: secuencia (0 - 1) -> se convierte a int; mensaje -> el mensaje en sí; crc_recibido -> crc recibido en hexadecimal
+        secuencia = int(partes[0])
+        mensaje = partes[1]
+        crc_recibido = int(partes[2], 16) # Se convierte de hexa (base 16) a número decimal
+
+        # Se simula error en el mensaje -> usando la probabilidad, corrompe el mensaje
+        mensaje = simular_error(mensaje, PROBABILIDAD_DE_ERROR)
+
+        # Se calcula el CRC del mensaje recibido -> calcula el crc del mensaje y este crc se comparará con el que envió el cliente
+        crc_calculado = crc16_ccitt(mensaje)
+
+        print(f"\tSecuencia: {secuencia}")
+        print(f"\tCRC recibido: {crc_recibido}")
+        print(f"\tCRC calculado: {crc_calculado}")
+
+
+        # Se comparan los CRC -> es la verificación de INTEGRIDAD del mensaje
+        if crc_calculado == crc_recibido:
+            # CRC CORRECTO - sin errores
+            print("\n[Servidor] CRC correcto")
+
+            # Se verifica el número de secuencia -> ¿Es el mensaje esperado o es duplicado?
+            if secuencia == secuencia_esperada:
+                
+                # Secuencia correcta -> mensaje NUEVO
+                print(f"[Servidor] Mensaje aceptado: {mensaje}")
+                respuesta = f"ACK {str(secuencia)}"
+
+                # Se alterna la secuencia esperada (0 -> 1 -> 0 -> 1...) --> asegura que cada mensaje nuevo tenga un número diferente
+                if secuencia_esperada == 0:
+                    secuencia_esperada = 1
+                else:
+                    secuencia_esperada = 0
+                
+            else:
+                # Secuencia incorrecta - mensaje DUPLICADO
+                print("[Servidor] Mensaje duplicado (ya fue recibido)")
+                respuesta = f"ACK {str(secuencia)}"
+
+        else:
+            # CRC INCORRECTO - hay error
+            print("[Servidor] ERROR detectado en el mensaje")
+            # Se envía el NACK al cliente -> indica que hubo un error y le pide que lo reenvíe
+            respuesta = f"NACK {str(secuencia)}"
+        
+
+        # Se envia la respuesta al cliente -> sentdto() envía datos a una dirección específica
+        # respuesta.encode() --> convierte str a bytes
+        # direccion_cliente --> define a quién enviar (IP y puerto)
+        sock.sendto(respuesta.encode("utf-8"), direccion_cliente)
+        print(f"[Servidor] Respuesta enviada: {respuesta}\n")
+
+
+# Punto de entrada del programa -> permite usar el script directamente o importarlo como módulo
+if __name__ == "__main__":
+    main()
