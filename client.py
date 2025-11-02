@@ -208,14 +208,14 @@ def main():
     # Se inicializa el numero de secuencia (0-1) -> evitar procesamiento de mensajes duplicados y detectar reenvíos o mensajes nuevos
     secuencia = 0
 
-    # Se muestran instrucciones al usuario
-    print("=" * 50)
-    print("Escribe un mensaje y presiona 'Enter' para enviarlo")
-    print("Presiona 'Enter' para salir")
-    print("=" * 50)
-
     # Bucle principal que se ejecuta indefinidamente hasta que el usuario decida salir -> interacción con el usuario
     while True:
+        # Se muestran instrucciones al usuario
+        print()
+        print("=" * 50)
+        print("Escribe un mensaje y presiona 'Enter' para enviarlo")
+        print("Presiona 'Enter' para salir")
+        print("=" * 50)
 
         # Se pide mensaje al usuario
         mensaje = input("\nMensaje a enviar: ")
